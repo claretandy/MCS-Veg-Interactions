@@ -21,8 +21,9 @@ mcs.ids <- unique(results$ID)
 # Make MCS tracks from results
 my.lines.sp <- makeLines(results)[[1]]
 
+# pdf("/Users/ajh235/Work/Projects/InternalSabbatical/Results/MCS_intensity_bysize_v2.pdf", width=14, height=9)
+
 # Plot lines with BL tree fraction in background
-pdf("/Users/ajh235/Work/Projects/InternalSabbatical/Results/MCS_intensity_bysize_v2.pdf", width=14, height=9)
 gntheme <- rasterTheme(pch=19, region=brewer.pal(9, 'YlGn'))
 blfrac <- myveg[[1]]
 my.plot <- rasterVis::levelplot(shift(blfrac, x=-360), margin=F, auto.key=list(title="Broadleaf tree fraction"), par.settings=gntheme, at=seq(0,1,0.1), xlim=c(-13,16), ylim=c(-9,9), main="MCS tracks (16/08 to 18/08)") + latticeExtra::layer(sp.polygons(land_simple, col="dark grey"))
@@ -61,27 +62,33 @@ for (ii in iii){
         precip.now <- shift(rb5216.4km.std[[which(getZ(rb5216.4km.std) == mydates[x])]], x=-360)
         
         # Mask precip that's not in the MCS
-        precip.mask <- getValues(mask(precip.now, mcsiinow))
+        mcsprecip   <- mask(precip.now, mcsiinow)
+        precip.mask <- getValues(mcsprecip)
         precip.mask <- precip.mask[!is.na(precip.mask)]
         
         # Mask blfrac that's not in the MCS
-        blfrac.mask <- getValues(mask(shift(blfrac, x=-360), mcsiinow))
+        mcstree     <- mask(shift(blfrac, x=-360), mcsiinow)
+        blfrac.mask <- getValues(mcstree)
         blfrac.mask <- blfrac.mask[!is.na(blfrac.mask)]
         
         # Mask grassfrac that's not in the MCS
-        grassfrac.mask <- getValues(mask(grassfrac, mcsiinow))
+        mcsgrass       <- mask(grassfrac, mcsiinow)
+        grassfrac.mask <- getValues(mcsgrass)
         grassfrac.mask <- grassfrac.mask[!is.na(grassfrac.mask)]
         
         # What is the max precip rate, and what are veg fractions at that location?
-        maxprecip <- cellStats(mask(precip.now, mcsiinow), 'max')*60*60
-        mcspoints <- rasterToPoints(mask(precip.now, mcsiinow), spatial=FALSE)
+        maxprecip <- cellStats(mcsprecip, 'max')*60*60
+        mcspoints <- rasterToPoints(mcsprecip, spatial=FALSE)
         maxpoint  <- matrix(mcspoints[which(mcspoints[,3]==maxprecip/3600), 1:2], byrow=T, nrow=1, ncol=2)
         maxgrass  <- extract(grassfrac, maxpoint)
         maxtree   <- extract(shift(blfrac, x=-360), maxpoint)
         
         # Where the rainfall is most intense, what's the rate over grass and the rate over tree?
         # Try tree threshold >0.3, but may need to experiment
+        # 1. Classify intense rain
+        
         browser()
+        
         
         if (!exists("mydf")){
             mydf <- data.frame(time=mydates[x], blfrac=mean(blfrac.mask) , grassfrac=mean(grassfrac.mask) , precip=mean(precip.mask)*60*60, maxprecip=maxprecip, maxgrass=maxgrass, maxtree=maxtree, areasqkm=sum(getValues(mcsiinow), na.rm=T)*4)
