@@ -19,13 +19,15 @@ grassfrac <- vegfrac[[3]] + vegfrac[[4]]; grassfrac[is.na(grassfrac)] <- 0
 mcs.ids <- unique(results$ID)
 
 # Make MCS tracks from results
-my.lines.sp <- makeLines(results)
+my.lines.sp <- makeLines(results)[[1]]
 
 # Plot lines with BL tree fraction in background
+pdf("/Users/ajh235/Work/Projects/InternalSabbatical/Results/MCS_intensity_bysize_v2.pdf", width=14, height=9)
 gntheme <- rasterTheme(pch=19, region=brewer.pal(9, 'YlGn'))
 blfrac <- myveg[[1]]
 my.plot <- rasterVis::levelplot(shift(blfrac, x=-360), margin=F, auto.key=list(title="Broadleaf tree fraction"), par.settings=gntheme, at=seq(0,1,0.1), xlim=c(-13,16), ylim=c(-9,9), main="MCS tracks (16/08 to 18/08)") + latticeExtra::layer(sp.polygons(land_simple, col="dark grey"))
 my.plot <- my.plot + latticeExtra::layer(sp.lines(my.lines.sp))
+print(my.plot)
 
 # What is the intensity of rainfall over forest and grass within an MCS?
 # load all MCS raster data
@@ -40,8 +42,6 @@ myspdf <- myspdf[[1]]
 # mytext.check <- cbind(matrix(unlist(startingpt), ncol=2, byrow=T), iii)
 
 mcsrst.path <- "/Users/ajh235/Work/DataLocal/Projects/InternalSabbatical/Results/Tracking/djzxs_10min/"
-
-pdf("/Users/ajh235/Work/Projects/InternalSabbatical/Results/MCS_intensity_bysize_v2.pdf", width=14, height=9)
 
 coordinates(mytext) <- ~x+y
 
