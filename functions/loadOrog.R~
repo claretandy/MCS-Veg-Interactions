@@ -1,0 +1,10 @@
+loadOrog <- function(model.nm="avg5216.4km.std", ancil="orog"){
+	km <- unlist(strsplit(model.nm, ".", fixed=T))[2]
+	km.num <- unlist(strsplit(km, ""))[1]
+	veg <- unlist(strsplit(model.nm, ".", fixed=T))[3]
+	file <- paste("/data/local/hadhy/ModelData/WAFR/ancils/km", km.num, "/qrparm.",ancil,"_",km,".",veg, ".pp", sep="")
+	myanc <- readPP(file, outfile=gsub(".pp", ".tif", x=file))
+	myanc <- subset(myanc, 1)
+
+	return(myorog)
+}

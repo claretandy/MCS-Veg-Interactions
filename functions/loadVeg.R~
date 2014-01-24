@@ -1,0 +1,34 @@
+# Loads veg fraction from ancillary files for each model run
+loadVeg <- function(model.nm="avg5216.4km.std", overwrite=T){
+	if (Sys.info()[["sysname"]] == "Darwin"){
+		indatadir <- "/media/WD MYBOOK/WAFR/"
+		resultsdir <- "/media/WD MYBOOK/Projects/InternalSabbatical/Results/"
+	} else {
+		indatadir <- "/data/local/hadhy/ModelData/WAFR/"
+		resultsdir <- "/home/h02/hadhy/Projects/InternalSabbatical/Results/"
+		require(PP,lib.loc="/project/ukmo/rhel6/R")
+	}
+
+	print("Loading vegetation fractions ...")
+	
+	require(raster)
+	require(rasterVis)
+
+	
+	km <- unlist(strsplit(model.nm, ".", fixed=T))[2]
+	km.num <- unlist(strsplit(km, ""))[1]
+	veg <- unlist(strsplit(model.nm, ".", fixed=T))[3]
+	file <- paste(indatadir,"ancils/km", km.num, "/qrparm.veg.frac_",km,".",veg, ".pp", sep="")
+	if (!file.exists(gsub(".pp", ".tif", x=file)) | overwrite==T){
+		myveg <- readPP(file, outfile=gsub(".pp", ".tif", x=file))
+	} else {
+		myveg <- brick(gsub(".pp", ".tif", x=file))
+	}
+
+	png(paste("~/Projects/InternalSabbatical/Results/vegfrac_maps_",km,".",veg,".png", sep=""), width=1000, height=1000)
+	gntheme <- rasterTheme(pch=19, region=brewer.pal(9, 'YlGn'))
+	layerNames(myveg) <- c("BL", "NL", "C3 grass", "C4 grass", "Shrub", "Urban", "Water", "Bare", "Ice")
+	print(levelplot(myveg, par.settings=gntheme))
+	dev.off()
+	return(myveg)
+}

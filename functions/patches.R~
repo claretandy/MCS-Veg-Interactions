@@ -1,0 +1,113 @@
+# First attempt at identifying patches ...
+require(raster)
+require(rasterVis)
+require(PP,lib.loc="/project/ukmo/rhel6/R")
+require(rgdal)
+require(sm)
+require(plotrix)
+require(RColorBrewer)
+require(classInt)
+
+mypatch <- function(threshold=100, inbr, id="s", land_simple, timestep="avg", overwrite=T){
+
+	# Set indir and outdir
+	datadir <- paste("/data/local/hadhy/ModelData/WAFR/djzx",id,"/",sep="") 
+	outdir <- paste("/data/local/hadhy/ModelData/WAFR/djzx",id,"/patches/",threshold,"km_",timestep,"/",sep="")
+	resultsdir <- paste("/data/local/hadhy/Projects/InternalSabbatical/Results/Clumps/djzx",id,"_",timestep,"/",sep="")
+	if (!file.exists(outdir)){ dir.create(outdir, recursive=T) }
+	if (!file.exists(resultsdir)){ dir.create(resultsdir, recursive=T) }
+# 
+# 	load("myWorkspace_09082012.Rdata")
+	
+	if (timestep=="10min"){
+		# Load 10min precip fields
+# 		if(!exists("pr.ss.10min")){
+		pr.10min <- brick(paste(datadir,"layers_tif/5216.vrt", sep=""))
+		myfiles.10min <- list.files(path=paste(datadir,"layers_tif", sep=""), pattern="^5216.*.tif")
+		mydates.10min <- as.POSIXct(paste("2006-08-",substr(myfiles.10min, 6,12),sep=""), format="%Y-%m-%d%H.%M")
+		pr.10min <- setZ(pr.10min, mydates.10min)
+		layerNames(pr.10min) <- format(mydates.10min, "%b-%d %H.%M")
+		mydates.10min <- which(getZ(pr.10min) >= as.POSIXct("2006-08-16 00:00"))
+		if (file.exists(paste(datadir,"pr.10min.16-19th.tif",sep=""))){
+			pr.ss <- brick(paste(datadir,"pr.10min.16-19th.tif",sep=""))
+		}else{
+			pr.ss <- subset(pr.10min, mydates.10min, filename=paste(datadir,"pr.10min.16-19th.tif",sep=""), format="GTiff", overwrite=T)
+		}
+		pr.ss <- setZ(pr.ss, getZ(pr.10min)[mydates.10min])
+# 		}
+	} 
+	if (timestep=="avg"){
+		pr.avg <- brick(paste(datadir,"layers_tif/avg.5216.vrt", sep=""))
+		myfiles.avg <- list.files(path=paste(datadir,"layers_tif", sep=""), pattern="^avg.5216.*.tif")
+		mydates.avg <- as.POSIXct(paste("2006-08-",substr(myfiles.avg, 10,16),sep=""), format="%Y-%m-%d%H.%M")
+		pr.avg <- setZ(pr.avg, mydates.avg)
+		layerNames(pr.avg) <- format(mydates.avg, "%b-%d %H.%M")
+		mydates.avg <- which(getZ(pr.avg) >= as.POSIXct("2006-08-16 00:00"))
+		if (file.exists(paste(datadir,"pr.avg.16-19th.tif",sep=""))){
+			pr.ss <- brick(paste(datadir,"pr.avg.16-19th.tif",sep=""))
+		}else{
+			pr.ss <- subset(pr.avg, mydates.avg, filename=paste(datadir,"pr.avg.16-19th.tif",sep=""), format="GTiff", overwrite=T)
+		}
+		pr.ss <- setZ(pr.ss, getZ(pr.avg)[mydates.avg])
+	}
+	
+	for (f in 1:nlayers(pr.ss)){
+		mydate <- getZ(pr.ss)[f]
+		print(mydate)
+		# Set output filenames
+		mcs.f <- paste(outdir, "mcs.",threshold,"km_", format(mydate, "%d%H.%M"),".tif",sep="")
+		pop.f <- paste(outdir, "pop.",threshold,"km_", format(mydate, "%d%H.%M"),".tif",sep="")
+		if(f == 13){ browser() }
+		if (timestep=="10min"){
+			# Convert precip from kg/m2/s to total mm in last 10 minutes
+			r <- calc(pr.ss[[f]], fun=function(x){x*60*10}, filename="/data/local/hadhy/Scratch/myrain.tif", format="GTiff", overwrite=T)
+			# Do the clump. 10min precip > 0.16667 ~ 1mm per hour (i.e. 10 * 1/60)
+			myclump <- clump(r > 0.16667, directions=4, gaps=F)
+		}
+		if (timestep=="avg"){
+			# avg precip is average rainfall rate in the last 1 hour, expressed in kg/m2/second
+# 			r <- pr.ss[[f]]
+			r <- calc(pr.ss[[f]], fun=function(x){x*60*60}, filename="/data/local/hadhy/Scratch/myrain.tif", format="GTiff", overwrite=T)
+			browser()
+			# Do the clump. avg precip > 1mm per hour 
+			r.gt1 <- r>1
+			
+			myclump <- clump(r.gt1, directions=4, gaps=F)
+# 			browser()
+		}
+		
+		# Get the approximate number of kmsq per clump. 
+		# 1 grid cell ~ 4*4km = 16 sqkm
+		sqkm <- ifelse(id=="u", 2.25, 16) 
+		mytab <- as.data.frame(table(getValues(myclump))*sqkm)
+		# Create empty raster
+		myr <- raster(myclump)
+		# Match raster values to table values, and return Freq
+		myrasterdata <- mytab[match(getValues(myclump), mytab$Var1[which(mytab$Var1!=0)]),"Freq"]
+		# Set values to the empty raster
+		myr <- setValues(myr, myrasterdata)
+		# Clumps > 100kmsq
+		mcs <- myr > threshold
+		pop <- myr <= threshold
+		writeRaster(mcs, filename=mcs.f, format="GTiff", overwrite=T)
+		writeRaster(pop, filename=pop.f, format="GTiff", overwrite=T)
+		
+		
+		
+		jpeg(paste(resultsdir,"/clumplot_",threshold,"km_",format(mydate, "%d%H.%M"),".jpg",sep=""), quality=100, width=900, height=600)
+		xbnd <- c(extent(spp)@xmin,extent(spp)@xmax)-360
+		ybnd <- c(extent(spp)@ymin,extent(spp)@ymax)
+
+		plot(shift(mcs, x=-360), main=format(mydate, "%b%d %H:%M"), xlim=xbnd, ylim=ybnd, col=c("green","orange"), legend=F )
+		legend(x=0, y=-9, horiz=T, c("MCS","POP"), fill=rev(c("green","orange")), xpd=T)
+		plot(land_simple, add=T)
+		plot(sppa, add=T)
+		
+		# browser()
+		dev.off()
+	}
+	system(paste("gdalbuildvrt -separate ",outdir,"allmcs.",threshold,"km.vrt ",outdir,"mcs.",threshold,"km*",sep=""))
+	system(paste("gdalbuildvrt -separate ",outdir,"allpop.",threshold,"km.vrt ",outdir,"pop.",threshold,"km*",sep=""))
+}
+# mypatch(200)
+# mypatch(100)
