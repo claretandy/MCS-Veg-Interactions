@@ -17,8 +17,10 @@ source("functions/tracker_v2.R")
 source("functions/mcsStats.R")
 source("functions/popStats.R")
 source("functions/initiations.R")
+source("functions/makeLines.R")
 source("getMyData.R")
 source("trackCheck.R")
+# source("mcsIntensity.R")
 
 if (Sys.info()[["sysname"]] == "Darwin"){
 	indatadir <- "/Users/ajh235/Work/DataLocal/ModelData/WAFR/"
@@ -92,10 +94,10 @@ for (x in 1:length(id)){
 	
 #     initiations(inpop=pop, id=id[x], threshold=1000, timestep="10min", indatadir=indatadir, dlresultsdir=dlresultsdir, overwrite=T)
     
-	tracks <- tracker2(threshold=threshold, mcs, inbr, id=id[x], timestep=timestep, indatadir=indatadir, dlresultsdir=dlresultsdir, overwrite=F)
+	results <- tracker2(threshold=threshold, mcs, inbr, id=id[x], timestep=timestep, indatadir=indatadir, dlresultsdir=dlresultsdir, overwrite=F)
 
     # Check MCS tracks match MCS blocks
-    trackCheck(tracks, mcs, inbr, id=id[x], threshold=threshold, timestep=timestep)
+#     trackCheck(results, mcs, inbr, id=id[x], threshold=threshold, timestep=timestep)
     
 # 	mcsfollow <- mcs.stats(mcs=mcs, precip=inbr, id=id[x], threshold=1000, timestep=timestep, indatadir=indatadir, dlresultsdir=dlresultsdir, overwrite=F)
     
@@ -107,7 +109,8 @@ for (x in 1:length(id)){
 # 	consec_drywet(inbr, id=id[x], indatadir=indatadir, scratchdir=scratchdir, overwrite=T)
     
     # Within MCS intensity
-#     mcsIntensity()
+    source("mcsIntensity.R")
+#     mcsIntensity(results, myveg, mcs, inbr)
 }
 
 # Plot time series of avg.5216 for each model ...
