@@ -8,14 +8,7 @@
     source("functions/makeLines.R")
     library(ggplot2)
     library(reshape)
-    
-    adjCoords <- function(r){
-        r <- shift(r, x=0.01798)
-        res(r) <- 0.036
-        r <- shift(r, y=0.018)
-        return(r)
-    }
-    
+        
     pdf("/Users/ajh235/Work/Projects/InternalSabbatical/Results/MCS_intensity_bysize_v3.pdf", width=14, height=9)
     mcsrst.path <- "/Users/ajh235/Work/DataLocal/Projects/InternalSabbatical/Results/Tracking/djzxs_10min/"
     gntheme <- rasterTheme(pch=19, region=brewer.pal(9, 'YlGn'))
@@ -23,14 +16,16 @@
     # Load veg fractions
     if(round(extent(myveg)@xmax + extent(myveg)@xmin) != 0){
         myveg <- shift(myveg, x=-360)
+        if (exists(mycl)){
+            mycl <- shift(mycl, x=-360)
+        }
     }
-    myveg <- adjCoords(myveg)
     blfrac <- myveg[[1]]; blfrac[is.na(blfrac)] <- 0
     grassfrac <- myveg[[3]] + myveg[[4]]; grassfrac[is.na(grassfrac)] <- 0
     if (!exists("mycl")){
         allveg <- vegPrep(model.nm=models[1], id=id[1], myveg, myorog, mylandfrac, land_simple, sppa, spp.r, plots=F, vegThreshold=0.3, overwrite=F) # return(mycl, mycl.z) and creates pdf plots
         mycl <- allveg[[1]]
-    }
+    } 
     
     # Get unique list of MCS ids
     mcs.ids <- unique(results$ID)
@@ -38,7 +33,7 @@
     
     # Plot lines with BL tree fraction in background
     print(
-        levelplot(blfrac, margin=F, auto.key=list(title="Broadleaf tree fraction"), par.settings=gntheme, at=seq(0,1,0.1), xlim=c(-13,16), ylim=c(-9,9), main="MCS results (16/08 to 18/08)") + 
+        levelplot(blfrac, margin=F, auto.key=list(title="Broadleaf tree fraction"), par.settings=gntheme, at=seq(0,1,0.1), xlim=c(-13,16), ylim=c(-9,9), main="MCS tracks (16/08 to 18/08)") + 
         latticeExtra::layer(sp.polygons(land_simple, col="dark grey")) + 
         latticeExtra::layer(sp.lines(alllines))
     )
@@ -47,7 +42,8 @@
     # mcs.length <- sort(table(results$ID))
     # iii <- as.numeric(dimnames(mcs.length[mcs.length > 100])[[1]]) # Get all MCS with length > 100
     id.pixcount <- aggregate(pixcount ~ ID, data=results, FUN=sum)
-    iii <- id.pixcount[which(id.pixcount$pixcount > 20000),"ID"]
+#     iii <- id.pixcount[which(id.pixcount$pixcount > 20000),"ID"]
+    iii <- c(110, 136, 150, 174, 328, 334, 345, 347, 469, 542, 586, 593, 611, 782, 812, 818, 863, 884, 919, 934, 949, 987) # This is a subset of the above > 20,000 pixel threshold
     spresults <- makeLines(results[results$ID %in% iii,])
     myspdf <- spresults[[1]] # Spatial Lines
     mytext <- spresults[[2]] # Spatial points of starting point
@@ -56,7 +52,7 @@
     coordinates(mytext) <- ~x+y
     
     print(
-        levelplot(blfrac, margin=F, par.settings=gntheme) + 
+        levelplot(blfrac, main="Large MCS tracks (16/08 to 18/08)", margin=F, par.settings=gntheme) + 
               latticeExtra::layer(sp.polygons(land_simple, col="grey")) + 
               latticeExtra::layer(sp.lines(myspdf)) + 
               latticeExtra::layer(sp.text(loc=coordinates(mytext), txt=mytext$ID)) 
@@ -77,7 +73,6 @@
             mcsiinow <- mcs.now == ii
             mcsiinow[mcsiinow == 0] <- NA
             precip.now <- shift(rb5216.4km.std[[which(getZ(rb5216.4km.std) == mydates[x])]], x=-360)
-            precip.now <- adjCoords(precip.now)
             
             # Mask precip that's not in the MCS
             mcsprecip   <- mask(precip.now, mcsiinow)
