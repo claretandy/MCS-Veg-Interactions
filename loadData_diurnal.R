@@ -37,15 +37,28 @@ if (Sys.info()[["sysname"]] == "Darwin"){
 
 rasterOptions(tmpdir=scratchdir, todisk=F)
 
+adjCoords <- function(r){
+    this.res <- res(r)[2]
+    if ( this.res <= 0.0136){
+        r <- shift(r, x=0.0068, y=0.00675)
+    }
+    
+    if (this.res <= 0.0365 & this.res > 0.0355){
+        r <- shift(r, x=0.01798, y=0.018)
+        res(r) <- 0.036
+    }
+    return(r)
+}
+
 timestep <- "10min" # "avg"
 threshold <- 1000
 land_simple <- readOGR(dsn=paste(indatadir,"ancils",sep=""), layer="land_rp")
 
 mydata <- getMyData(timestep=timestep, var="lsrain", overwrite=F)
-rb5216.1km.std <- mydata[[1]]
-rb5216.4km.std <- mydata[[2]]
-rb5216.4km.50k <- mydata[[3]]
-rb5216.4km.300k <- mydata[[4]]
+rb5216.1km.std <- adjCoords(mydata[[1]])
+rb5216.4km.std <- adjCoords(mydata[[2]])
+rb5216.4km.50k <- adjCoords(mydata[[3]])
+rb5216.4km.300k <- adjCoords(mydata[[4]])
 
 # u = 1km std veg
 # s = 4km std veg
@@ -61,7 +74,7 @@ testing <- FALSE # TRUE
 
 if (testing == FALSE){
     # Load veg, orog and landfrac
-    myveg <- loadVeg(model.nm=models[1], overwrite=F)
+    myveg <- adjCoords(loadVeg(model.nm=models[1], overwrite=F))
     myorog <- loadOtherAncils(model.nm=models[1], ancil="orog", overwrite=F)
     mylandfrac <- loadOtherAncils(model.nm=models[1], ancil="landfrac", overwrite=F)
     
@@ -73,7 +86,7 @@ if (testing == FALSE){
     sppa <- myboxes[[4]] # adjusted polygons
     
     # Prepare vegetation data for use in clipping etc
-    allveg <- vegPrep(model.nm=models[1], id=id[1], myveg, myorog, mylandfrac, land_simple, sppa, spp.r, plots=F, overwrite=F) # return(mycl, mycl.z) and creates pdf plots
+    allveg <- vegPrep(model.nm=models[1], id=id[1], myveg, myorog, mylandfrac, land_simple, sppa, spp.r, plots=F, vegThreshold=0.3, overwrite=F) # return(mycl, mycl.z) and creates pdf plots
     mycl <- allveg[[1]]
 }
 
@@ -86,7 +99,7 @@ for (x in 1:length(id)){
 # 	allpatch <- mypatch(threshold=1000, inbr=inbr, id=id[x], land_simple, timestep=timestep, indatadir=indatadir, dlresultsdir=dlresultsdir, spp=spp, sppa=sppa, overwrite=T)
 # 	mcs <- allpatch[[1]]
 # 	pop <- allpatch[[2]]
-	mcs <- brick(paste(indatadir,"djzx",id[x],"/patches/",threshold,"km_",timestep,"/allmcs.1000km.vrt", sep=""))
+	mcs <- adjCoords(brick(paste(indatadir,"djzx",id[x],"/patches/",threshold,"km_",timestep,"/allmcs.1000km.vrt", sep="")))
 	
 # 	pop.stats(pop=pop, id=id[x], threshold=threshold, timestep="10min", indatadir=indatadir, dlresultsdir=dlresultsdir, overwrite=F)
     

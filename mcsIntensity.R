@@ -9,7 +9,14 @@
     library(ggplot2)
     library(reshape)
     
-    pdf("/Users/ajh235/Work/Projects/InternalSabbatical/Results/MCS_intensity_bysize_v2.pdf", width=14, height=9)
+    adjCoords <- function(r){
+        r <- shift(r, x=0.01798)
+        res(r) <- 0.036
+        r <- shift(r, y=0.018)
+        return(r)
+    }
+    
+    pdf("/Users/ajh235/Work/Projects/InternalSabbatical/Results/MCS_intensity_bysize_v3.pdf", width=14, height=9)
     mcsrst.path <- "/Users/ajh235/Work/DataLocal/Projects/InternalSabbatical/Results/Tracking/djzxs_10min/"
     gntheme <- rasterTheme(pch=19, region=brewer.pal(9, 'YlGn'))
     
@@ -17,8 +24,13 @@
     if(round(extent(myveg)@xmax + extent(myveg)@xmin) != 0){
         myveg <- shift(myveg, x=-360)
     }
+    myveg <- adjCoords(myveg)
     blfrac <- myveg[[1]]; blfrac[is.na(blfrac)] <- 0
     grassfrac <- myveg[[3]] + myveg[[4]]; grassfrac[is.na(grassfrac)] <- 0
+    if (!exists("mycl")){
+        allveg <- vegPrep(model.nm=models[1], id=id[1], myveg, myorog, mylandfrac, land_simple, sppa, spp.r, plots=F, vegThreshold=0.3, overwrite=F) # return(mycl, mycl.z) and creates pdf plots
+        mycl <- allveg[[1]]
+    }
     
     # Get unique list of MCS ids
     mcs.ids <- unique(results$ID)
@@ -60,10 +72,12 @@
             print(mydates[x])
             
             mcs.now <- shift(raster(paste(mcsrst.path,"mcs_tracking_1000km_",format(mydates[x], "%d.%H%M"), ".tif",sep="")), x=-360)
+            mcs.now <- adjCoords(mcs.now)
             
             mcsiinow <- mcs.now == ii
             mcsiinow[mcsiinow == 0] <- NA
             precip.now <- shift(rb5216.4km.std[[which(getZ(rb5216.4km.std) == mydates[x])]], x=-360)
+            precip.now <- adjCoords(precip.now)
             
             # Mask precip that's not in the MCS
             mcsprecip   <- mask(precip.now, mcsiinow)
@@ -93,6 +107,7 @@
             
             # 2. Clip intense rain to forest or non-forest class 
             # forest: (tree >= 0.3) and non-forest: (tree < 0.3)
+            browser()
             tree.intprecip <- mcsprecip.intense * 3600
             grass.intprecip <- mcsprecip.intense * 3600
             grass.intprecip[mcstree >= 0.3] <- NA

@@ -1,6 +1,6 @@
 # Prepare land cover masks etc ...
 
-vegPrep <- function(model.nm, id="s", myveg, myorog, mylandfrac, land_simple, sppa, spp.r, plots=F, overwrite=T){
+vegPrep <- function(model.nm, id="s", myveg, myorog, mylandfrac, land_simple, sppa, spp.r, plots=F, vegThreshold=0.5, overwrite=T){
 	
 	print("Running vegPrep ...")
 	if (Sys.info()[["sysname"]] == "Darwin"){
@@ -26,11 +26,11 @@ vegPrep <- function(model.nm, id="s", myveg, myorog, mylandfrac, land_simple, sp
     if (plots==T){
         pdf(paste(resultsdir,"vegPrep_plots.",km,".",veg,".pdf", sep=""), width=12, height=8, onefile=T)
     }
-	
-	
+	    
 	# Calculate tree and grass fractions ...
 	tree <- calc(subset(myveg, c(1,2,5)), fun=sum)
 	grass <- calc(subset(myveg, c(3,4)), fun=sum)
+    bare <- myveg[[8]]
 
     # Creating orog mask...
 	orogmsk <- myorog > 500
@@ -47,9 +47,11 @@ vegPrep <- function(model.nm, id="s", myveg, myorog, mylandfrac, land_simple, sp
     
 	# Choose 50% threshold of vegetation (may need to change this) ...
 	print("Calculating tree/grass fractions ...")
-	tr.cl <- tree > 0.5
-	gr.cl <- grass > 0.5
-	mix.cl <- (grass > 0.2 & grass <= 0.5 & tree > 0.2 & tree <= 0.5)
+	vt <- vegThreshold
+    tr.cl <- tree > vt
+	gr.cl <- (tr.cl != 1 & grass > vt)
+	mix.cl <- (grass > 0 & grass <= 0.3 & tree > 0 & tree <= 0.3 & bare > vt) # Actually sparse veg when threshold set to 0.3
+# 	mix.cl <- (grass > 0 & grass <= 0.3 & tree > 0 & tree <= 0.3)
 	all.cl <- stack(tr.cl, gr.cl, mix.cl)
 	names(all.cl) <- c("Tree", "Grass", "Mix")
 	mylandfrac[(mylandfrac < 1)] <- NA
@@ -70,27 +72,28 @@ vegPrep <- function(model.nm, id="s", myveg, myorog, mylandfrac, land_simple, sp
 	# Fractions of each class per box (using land and orography mask)
 	if (plots==T){
         print("Barplots of fractions per zone ...")
-    	barplot(t(zonal(all.cl, spp.r, na.rm=T, stat='sum')[,2:4] / zonal(mylandfrac, spp.r, na.rm=T, stat='sum')[,2]), beside=T, names.arg=1:nrow(centroids), col=c("dark green","yellow","brown"), xlab="Zones")
+    	barplot(t(zonal(all.cl, spp.r, na.rm=T, fun='sum')[,2:4] / zonal(mylandfrac, spp.r, na.rm=T, fun='sum')[,2]), beside=T, names.arg=1:nrow(centroids), col=c("dark green","yellow","brown"), xlab="Zones")
     	legend(x=59, y=0.9, xpd=T, c("tree","grass","mix"), fill=c("dark green","yellow","brown"))
 	}
     
 	# Where are the tree:grass boundaries?
 	print("Detecting boundaries ...")
-	if (!file.exists(paste(outdir,"mycl_masked.tif",sep="")) | overwrite==T){
-		mybnds <- focal(mycl, w=3, fun=function(x){ifelse(table(x)[1]>2 & table(x)[2]>2,3,0)}, filename=paste(outdir,"mycl_focal.tif",sep=""), format="GTiff", overwrite=T)
-		mybnds.buf <- focal(mybnds, w=3, fun=max, na.rm=T, filename=paste(outdir,"mybnds_focal.tif",sep=""), format="GTiff", overwrite=T)
+    myclfile <- paste(outdir,"mycl_masked_",vt,".tif",sep="")
+	if (!file.exists(myclfile) | overwrite==T){
+		mybnds <- focal(mycl, w=matrix(1, nrow=3, ncol=3), fun=function(x){ifelse(table(x)[1]>2 & table(x)[2]>2,3,0)}, filename=paste(outdir,"mycl_focal.tif",sep=""), format="GTiff", overwrite=T)
+		mybnds.buf <- focal(mybnds, w=matrix(1, nrow=3, ncol=3), fun=max, na.rm=T, filename=paste(outdir,"mybnds_focal.tif",sep=""), format="GTiff", overwrite=T)
 		mycl[mybnds == 3] <- 4
 		mycl[mybnds.buf == 3 & mycl == 1] <- 5 # Tree close to boundary
 		mycl[mybnds.buf == 3 & mycl == 2] <- 6 # Grass close to boundary
-		mycl <- mask(mycl, orogmsk, filename=paste(outdir,"mycl_masked.tif",sep=""), format="GTiff", overwrite=T)
+		mycl <- mask(mycl, orogmsk, filename=myclfile, format="GTiff", overwrite=T)
 	} else {
-		mycl <- raster(paste(outdir,"mycl_masked.tif",sep=""))
+		mycl <- raster(myclfile)
 	}
 	
 	if (plots==T){
     	print("Maps of vegetation zones and boxes ...")
     	plot(shift(mycl, x=-360), col=c("green", "yellow", "grey", "brown","red","blue"), main="Vegetation boundaries masked by orography > 500m", legend=F, xlim=c(-10,16), ylim=c(-10,6))
-    	legend(x=17, y=5, c("tree","grass","mix","boundary","boundary tree","boundary grass"), fill=c("green", "yellow", "grey", "brown","red","blue"), xpd=T)
+    	legend(x=17, y=5, c("tree","grass","sparse","boundary","boundary tree","boundary grass"), fill=c("green", "yellow", "grey", "brown","red","blue"), xpd=T)
     	plot(land_simple, add=T)
     	plot(sppa, add=T)
     	text(centroids, labels=1:nrow(centroids), cex=3)
