@@ -61,7 +61,7 @@ vegPrep <- function(model.nm, id="s", myveg, myorog, mylandfrac, land_simple, sp
 	mycl[mix.cl == 1]<- 3
 
 	# Mask out orography from zones ...
-	spp.r <- mask(spp.r, orogmsk)
+	spp.r <- raster::mask(spp.r, orogmsk)
 	if (plots==T){	    
     	plot(shift(spp.r, x=-360), xlim=c(-10,16), ylim=c(-10,6))
     	plot(land_simple, add=T)
@@ -85,15 +85,17 @@ vegPrep <- function(model.nm, id="s", myveg, myorog, mylandfrac, land_simple, sp
 		mycl[mybnds == 3] <- 4
 		mycl[mybnds.buf == 3 & mycl == 1] <- 5 # Tree close to boundary
 		mycl[mybnds.buf == 3 & mycl == 2] <- 6 # Grass close to boundary
-		mycl <- mask(mycl, orogmsk, filename=myclfile, format="GTiff", overwrite=T)
+        mycl[myorog > 500]  <- 7 # Orography
+        mycl <- writeRaster(mycl, filename=myclfile, format="GTiff", overwrite=T)
+# 		mycl <- mask(mycl, orogmsk, filename=myclfile, format="GTiff", overwrite=T)
 	} else {
 		mycl <- raster(myclfile)
 	}
 	
 	if (plots==T){
     	print("Maps of vegetation zones and boxes ...")
-    	plot(shift(mycl, x=-360), col=c("green", "yellow", "grey", "brown","red","blue"), main="Vegetation boundaries masked by orography > 500m", legend=F, xlim=c(-10,16), ylim=c(-10,6))
-    	legend(x=17, y=5, c("tree","grass","sparse","boundary","boundary tree","boundary grass"), fill=c("green", "yellow", "grey", "brown","red","blue"), xpd=T)
+    	plot(shift(mycl, x=-360), col=c("green", "yellow", "orange", "brown","red","blue", "grey"), main="Vegetation boundaries masked by orography > 500m", legend=F, xlim=c(-10,16), ylim=c(-10,6))
+    	legend(x=17, y=5, c("tree","grass","sparse","boundary","boundary tree","boundary grass", "orogrpahy"), fill=c("green", "yellow", "orange", "brown","red","blue", "grey"), xpd=T)
     	plot(land_simple, add=T)
     	plot(sppa, add=T)
     	text(centroids, labels=1:nrow(centroids), cex=3)

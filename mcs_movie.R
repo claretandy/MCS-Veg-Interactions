@@ -10,6 +10,8 @@ precip.all <- shift(stack(rb5216.4km.std), x=-360)
 precip.mcsall <- mask(precip.all, mcs_tracks_all)*3600
 # precip.mcsall.int <- calc(precip.mcsall, fun=function(x){x[x<20 | is.na(x)]<-0; return(x)})
 
+iii <- c(110, 136, 150, 174, 328, 334, 345, 347, 469, 542, 586, 593, 611, 782, 812, 818, 863, 884, 919, 934, 949, 987) # This is a subset of the above > 20,000 pixel threshold
+
 for (ii in iii){
     print(ii)
     

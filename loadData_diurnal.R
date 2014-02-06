@@ -5,7 +5,7 @@ library(raster)
 library(rasterVis)
 library(rgdal)
 source("functions/consec_drywet.R")
-source("functions/diurnal_cycle.R")
+source("functions/diurnal_cycle_v2.R")
 source("functions/loadVeg.R") # Returns myveg = fractional veg cover for each pft tile
 source("functions/loadOtherAncils.R")
 source("functions/makeBoxes.R") 
@@ -88,6 +88,10 @@ if (testing == FALSE){
     # Prepare vegetation data for use in clipping etc
     allveg <- vegPrep(model.nm=models[1], id=id[1], myveg, myorog, mylandfrac, land_simple, sppa, spp.r, plots=F, vegThreshold=0.3, overwrite=F) # return(mycl, mycl.z) and creates pdf plots
     mycl <- allveg[[1]]
+    if (round(extent(mycl)@xmin + (extent(mycl)@xmax - extent(mycl)@xmin)/2) == 360){
+        mycl <- shift(mycl, x=-360)
+    }
+    
 }
 
 
@@ -115,7 +119,10 @@ for (x in 1:length(id)){
 # 	mcsfollow <- mcs.stats(mcs=mcs, precip=inbr, id=id[x], threshold=1000, timestep=timestep, indatadir=indatadir, dlresultsdir=dlresultsdir, overwrite=F)
     
 	# Create plots of diurnal cycle
-# 	diurnalcycle(inbr, type="all", patch=F, model.nm=models[x], id=id[x], spp.r=spp.r, sppa=sppa, mycl=mycl, land_simple, overwrite=T) # Creates pdf plots
+# 	diurnalcycle2(inbr, type="all", patch=F, model.nm=models[x], id=id[x], spp.r=spp.r, sppa=sppa, mycl=mycl, land_simple, overwrite=F) # Creates pdf plots
+#     diurnalcycle2(inbr, type="intense", patch=F, model.nm=models[x], id=id[x], spp.r=spp.r, sppa=sppa, mycl=mycl, land_simple, overwrite=F) # Creates pdf plots
+
+
 # 	diurnalcycle(inbr, type="pop", patch=pop, model.nm=models[x], id=id[x], spp.r=spp.r, sppa=sppa, mycl=mycl, land_simple, overwrite=T) # Creates pdf plots
 	
     # Consecutive dry and wet days ...
@@ -123,7 +130,10 @@ for (x in 1:length(id)){
     
     # Within MCS intensity
     source("mcsIntensity.R")
-#     mcsIntensity(results, myveg, mcs, inbr)
+
+    # Make stats on MCS Initiations 
+#     source("initiation_analysis.R")
+
 }
 
 # Plot time series of avg.5216 for each model ...
