@@ -36,9 +36,12 @@ makeBoxes2 <- function(xmin, ymin, xmax, ymax, xdim, ydim, temp){
 	boxes <- raster(matrix(1:(nr*nc), nrow=nr, ncol=nc, byrow=T), xmn=xmin, xmx=xmin+(nc*xdim), ymn=ymin, ymx=ymin+(nr*ydim))
 	boxes.poly <- rasterToPolygons(boxes)
 	boxes.r <- resample(boxes, temp, method="ngb")
-	boxesa <- shift(boxes, x=-360)
-	boxesa.poly <- rasterToPolygons(boxesa)
-	boxesa.r <- resample(boxesa, shift(temp, x=-360), method="ngb")
+	if (xmax(boxes.r) > 360){
+	    boxesa <- shift(boxes, x=-360)
+	    boxesa.poly <- rasterToPolygons(boxesa)
+	    boxesa.r <- resample(boxesa, shift(temp, x=-360), method="ngb")
+	    return(list(boxes.r, boxesa.r, boxes.poly, boxesa.poly))
+	}
 	
-	return(list(boxes.r, boxesa.r, boxes.poly, boxesa.poly))
+	return(list(boxes.r, boxes.r, boxes.poly, boxes.poly))
 }
